@@ -1,29 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
-  residues,
-  categories,
+  fetchCategories,
+  fetchFeaturedResidues,
   searchResidues,
+  type Category,
   type Residue,
   type RiskLevel,
-} from "./data/residues";
+} from "./api";
 
-const UNSPLASH_IMAGES: Record<string, string> = {
-  jeringa:
-    "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=320&fit=crop&auto=format",
-  pila: "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?w=400&h=320&fit=crop&auto=format",
-  cartón:
-    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=320&fit=crop&auto=format",
-  "residuo-orgánico":
-    "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=400&h=320&fit=crop&auto=format",
-  celular:
-    "https://images.unsplash.com/photo-1558618047-f0a193bf8e77?w=400&h=320&fit=crop&auto=format",
-  "aceite-motor":
-    "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=320&fit=crop&auto=format",
-  vidrio:
-    "https://images.unsplash.com/photo-1590246814883-56951e52dbe4?w=400&h=320&fit=crop&auto=format",
-  mascarilla:
-    "https://images.unsplash.com/photo-1584634731339-252c581abfc5?w=400&h=320&fit=crop&auto=format",
-};
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=400&h=320&fit=crop&auto=format";
 
 function riskConfig(level: RiskLevel) {
   if (level === "danger")
@@ -249,7 +235,7 @@ function CategoryChip({
 }
 
 function ResidueCardImage({ residue }: { residue: Residue }) {
-  const src = UNSPLASH_IMAGES[residue.id];
+  const src = residue.imageUrl;
   return (
     <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#e8f0ea] border border-[#d1ddd1] shrink-0 flex items-center justify-center">
       {src ? (
@@ -299,29 +285,63 @@ function HomeScreen({
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Residue[]>([]);
-  const [searched, setSearched] = useState(false);
+  // Consulta a la que corresponden `results`; si difiere de `query`, la búsqueda sigue en curso.
+  const [resultsFor, setResultsFor] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [featured, setFeatured] = useState<Residue[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const searched = query.length >= 2;
+  const searching = searched && resultsFor !== query;
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    Promise.all([fetchCategories(ctrl.signal), fetchFeaturedResidues(ctrl.signal)])
+      .then(([cats, feat]) => {
+        setCategories(cats);
+        setFeatured(feat);
+      })
+      .catch(() => {
+        if (!ctrl.signal.aborted) setLoadError("No se pudo conectar con el servidor.");
+      });
+    return () => ctrl.abort();
+  }, []);
+
+  useEffect(() => {
+    if (query.length < 2) return;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => {
+      searchResidues(query, ctrl.signal)
+        .then((found) => {
+          setResults(found);
+          setSearchError(null);
+          setResultsFor(query);
+        })
+        .catch(() => {
+          if (ctrl.signal.aborted) return;
+          setResults([]);
+          setSearchError("No se pudo completar la búsqueda. Inténtalo de nuevo.");
+          setResultsFor(query);
+        });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [query]);
 
   const handleSearch = useCallback((q: string) => {
-    setResults(searchResidues(q));
-    setSearched(true);
     onSearch(q);
   }, [onSearch]);
 
   const handleChange = useCallback((v: string) => {
     setQuery(v);
-    if (v.length >= 2) {
-      setResults(searchResidues(v));
-      setSearched(true);
-    } else {
-      setResults([]);
-      setSearched(false);
-    }
   }, []);
 
   const clearSearch = useCallback(() => {
     setQuery("");
-    setSearched(false);
-    setResults([]);
   }, []);
 
   return (
@@ -347,9 +367,13 @@ function HomeScreen({
       </div>
 
       {/* Search results */}
-      {searched && query.length >= 2 && (
+      {searched && (
         <div className="mb-10">
-          {results.length > 0 ? (
+          {searching ? (
+            <p className="text-sm text-[#4a5e4a]">Buscando&hellip;</p>
+          ) : searchError ? (
+            <p className="text-sm text-red-700">{searchError}</p>
+          ) : results.length > 0 ? (
             <>
               <p className="text-sm text-[#4a5e4a] mb-4">
                 {results.length} resultado{results.length !== 1 ? "s" : ""} para{" "}
@@ -368,8 +392,13 @@ function HomeScreen({
       )}
 
       {/* Quick categories */}
-      {(!searched || query.length < 2) && (
+      {!searched && (
         <>
+          {loadError && (
+            <p className="mb-6 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              {loadError} Verifica que la API esté corriendo.
+            </p>
+          )}
           <div className="mb-6">
             <h2 className="text-xs font-semibold text-[#4a5e4a] uppercase tracking-widest mb-3">
               Categorías rápidas
@@ -391,7 +420,7 @@ function HomeScreen({
               Residuos frecuentes
             </h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              {residues.slice(0, 4).map((r) => (
+              {featured.map((r) => (
                 <ResidueCard key={r.id} residue={r} onClick={() => onSelectResidue(r)} />
               ))}
             </div>
@@ -469,9 +498,7 @@ function EmptyState({ query, onClear }: { query: string; onClear: () => void }) 
 function DetailScreen({ residue, onBack }: { residue: Residue; onBack: () => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const risk = riskConfig(residue.riskLevel);
-  const imgSrc =
-    UNSPLASH_IMAGES[residue.id] ||
-    "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=400&h=320&fit=crop&auto=format";
+  const imgSrc = residue.imageUrl || FALLBACK_IMAGE;
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -488,10 +515,13 @@ function DetailScreen({ residue, onBack }: { residue: Residue; onBack: () => voi
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            onSubmit={(q) => {
-              if (q.trim()) {
-                const found = searchResidues(q);
+            onSubmit={async (q) => {
+              if (!q.trim()) return;
+              try {
+                const found = await searchResidues(q);
                 if (found.length > 0) onBack();
+              } catch {
+                // Sin conexión: el usuario permanece en el detalle.
               }
             }}
             compact

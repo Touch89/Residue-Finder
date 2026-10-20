@@ -1124,6 +1124,25 @@ export const residues: Residue[] = [
   },
 ];
 
+// Imagen de cada residuo (solo los que tienen una). Se guarda en residues.image_url.
+export const residueImages: Record<string, string> = {
+  jeringa:
+    "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=320&fit=crop&auto=format",
+  pila: "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?w=400&h=320&fit=crop&auto=format",
+  cartón:
+    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=320&fit=crop&auto=format",
+  "residuo-orgánico":
+    "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=400&h=320&fit=crop&auto=format",
+  celular:
+    "https://images.unsplash.com/photo-1558618047-f0a193bf8e77?w=400&h=320&fit=crop&auto=format",
+  "aceite-motor":
+    "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=320&fit=crop&auto=format",
+  vidrio:
+    "https://images.unsplash.com/photo-1590246814883-56951e52dbe4?w=400&h=320&fit=crop&auto=format",
+  mascarilla:
+    "https://images.unsplash.com/photo-1584634731339-252c581abfc5?w=400&h=320&fit=crop&auto=format",
+};
+
 export const categories = [
   { label: "Corto-punzante", color: "danger" },
   { label: "Electrónico", color: "caution" },
