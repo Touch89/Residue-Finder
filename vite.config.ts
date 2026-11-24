@@ -33,6 +33,11 @@ export default defineConfig(({ mode }) => {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      // Permite usar VITE_API_URL=/api (p. ej. en Codespaces): el navegador solo
+      // habla con Vite y este reenvía a la API, sin problemas de CORS.
+      proxy: {
+        '/api': process.env.API_PROXY_TARGET || 'http://localhost:8000',
+      },
       watch: {
         ignored: [
           '**/.figma/**',
