@@ -5,14 +5,15 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "containerEnv": {
-    "VITE_API_URL": "/api"
+    "VITE_API_URL": "/api",
+    "PORT": "5173"
   },
   "postCreateCommand": "corepack enable && corepack prepare pnpm@10.34.3 --activate && pnpm install",
-  "postStartCommand": "docker compose up -d --build",
-  "forwardPorts": [8443, 8000],
+  "postStartCommand": "bash -c 'for i in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 2; done; docker compose up -d --build'",
+  "forwardPorts": [5173, 8000],
   "portsAttributes": {
-    "8443": { "label": "Sitio (Vite)", "onAutoForward": "openBrowser" },
-    "8000": { "label": "API", "onAutoForward": "silent" },
+    "5173": { "label": "Sitio (Vite)", "protocol": "http", "onAutoForward": "openBrowser" },
+    "8000": { "label": "API", "protocol": "http", "onAutoForward": "silent" },
     "3307": { "label": "MySQL", "onAutoForward": "ignore" }
   },
   "customizations": {
