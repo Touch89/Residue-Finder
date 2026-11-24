@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      allowedHosts: ['.app.github.dev'],
       // Permite usar VITE_API_URL=/api (p. ej. en Codespaces): el navegador solo
       // habla con Vite y este reenvía a la API, sin problemas de CORS.
       proxy: {
